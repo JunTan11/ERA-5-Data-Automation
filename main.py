@@ -6,16 +6,16 @@ import shutil
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
 import pyautogui
 from selenium.webdriver.chrome.options import Options
 
-# changable data
-download_directory = "your directory"
-webdriver_path = 'your path'
-my_email = "your email"
-my_password = "your password"
-download_directory = "your directory"
+# changeable data
+download_directory = "download directory"
+webdriver_path = 'webdriver path'
+my_email = "email"
+my_password = "password"
 
 options = Options()
 options.add_experimental_option('prefs', {
@@ -64,6 +64,10 @@ button.click()
 temperature_element = wait.until(EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), '2m dewpoint temperature')]/ancestor::div[@class='StringListWidgetCheckboxLabel']/preceding-sibling::input")))
 temperature_element.click()
 
+# Select the parameter (2m temperature)
+temperature_element = wait.until(EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), '2m temperature')]/ancestor::div[@class='StringListWidgetCheckboxLabel']/preceding-sibling::input")))
+temperature_element.click()
+
 # Dictionary mapping month values to month names
 months = {
     '01': 'January',
@@ -83,7 +87,9 @@ months = {
 # scroll down slightly
 driver.execute_script("window.scrollTo(0, 2600)") 
 
+
 # Select all of the days
+
 # selecting the physical point on the screen, since the script was unable to locate the correct button
 # Move the mouse cursor to the desired coordinates, varies in different screen sizes
 pyautogui.moveTo(x=1305, y=655, duration=0.4)
@@ -91,7 +97,7 @@ pyautogui.moveTo(x=1305, y=655, duration=0.4)
 # Click at the current mouse position
 pyautogui.click()
 
-# Wait for a moment
+# Wait
 time.sleep(2)
 
 # Move the mouse cursor to the second set of coordinates
@@ -123,7 +129,7 @@ for year in range(1950, 1951):  # replace end year with the end year + 1
 
     for month in months:
         # Select the month
-        month_radio_button = driver.find_element_by_xpath(f"//input[@value='{month}']")
+        month_radio_button = wait.until(EC.element_to_be_clickable((By.XPATH, f"//input[@value='{month}']")))
         month_radio_button.click()
 
         # Fill out the correct parameters for the sub-region extraction
@@ -152,41 +158,38 @@ for year in range(1950, 1951):  # replace end year with the end year + 1
         except NoSuchElementException:
             pass
         
-        # Preparing to click on the download button
-        button_xpath = "//a[contains(@class, 'btn-success') and contains(text(), 'Download')]"
-        # Wait
-        wait_time = 10
-        button = None
+        # clicking the download button
+        time.sleep(380) # change this to 380 once testing has been completed
+        pyautogui.moveTo(x=1715, y=930, duration=0.4)
+        pyautogui.click()
 
-        # Wait until the button is clickable or the wait time is exceeded
-        try:
-            button = WebDriverWait(driver, wait_time).until(EC.element_to_be_clickable((By.XPATH, button_xpath)))
-        except:
-            pass
+        # wait for file to be downloaded
+        time.sleep(370)
 
-        # Click the button if it is found
-        if button is not None:
-            button.click()
+        # Get the list of all .zip files in the directory
+        zip_files = [f for f in os.listdir(download_directory) if f.endswith(".zip")]
 
+        # Find the most recently downloaded .zip file
+        latest_file = max(zip_files, key=lambda f: os.path.getmtime(os.path.join(download_directory, f)))
 
-        # Rename and move the file
-        for filename in os.listdir(download_directory):
-            if filename.endswith(".zip"):
-                old_path = os.path.join(download_directory, filename)
-                new_path = os.path.join(download_directory, f"{year}_{month}.zip")
-                shutil.move(old_path, new_path)
+        # Rename the file
+        old_path = os.path.join(download_directory, latest_file)
+        new_path = os.path.join(download_directory, f"{year}_{month}.zip")
+        os.rename(old_path, new_path)
 
-        # delete the file from the list of downloads on the site
-        checkmark = driver.find_element_by_xpath("//span[contains(@class, 'mark-button') and contains(@class, 'fa-square-o')]")
-        checkmark.click()
-        delete_button = driver.find_element_by_xpath("//button[contains(text(), 'Delete selected')]")
-        delete_button.click()
+        # # delete online downloaded list of data (not working)
+        # # delete the file from the list of downloads on the site
+        # time.sleep(10)
+        # checkmark = driver.find_element_by_xpath("//span[contains(@class, 'mark-button') and contains(@class, 'fa-square-o')]")
+        # checkmark.click()
+        # delete_button = driver.find_element_by_xpath("//button[contains(text(), 'Delete selected')]")
+        # delete_button.click()
 
-        # clicking on the confirm button
-        time.sleep(1.5)
-        button_xpath = "//button[contains(@class, 'btn-primary') and contains(text(), 'Delete')]"
-        button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, button_xpath)))
-        button.click()
+        # # click on the delete button on the confirmation page
+        # time.sleep(3)
+        # element = driver.find_element_by_xpath("//span[contains(@class, 'mark-button') and contains(@class, 'fa-square-o')]")
+        # driver.execute_script("arguments[0].click();", element)
+
 
         # return to the previous page
         driver.back()
